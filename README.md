@@ -26,5 +26,6 @@ If the game says something different, the game is right.
 
 - `npm install`, then `npm start` runs the app.
 - `npm run dist` builds the installer into `dist/`.
-- To publish an update: bump `version` in `package.json`, commit, then push a matching tag
-  (`git tag v1.1.0 && git push origin v1.1.0`). GitHub builds it and publishes the release.
+- To publish an update: bump `version` in `package.json` and push to main. Then either push a
+  matching tag (`git tag v1.1.0 && git push origin v1.1.0`), or open Actions → Build Windows app →
+  Run workflow and tick "publish". GitHub builds it and publishes the release.
