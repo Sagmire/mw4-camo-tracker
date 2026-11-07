@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MW4 Camo Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one narrow column — sticky header with overall progress and class tabs, then a stack of weapon rows, each a wrap of camo chips. */
+:root {
+  --bg: #f3f4ef;
+  --surface: #ffffff;
+  --fg: #1d211b;
+  --muted: #6a7064;
+  --line: #dadcd2;
+  --accent: #5f6e2d;
+  --accent-fg: #ffffff;
+  --chip: #eceee6;
+  --gold: #b8860b;
+  --plat: #7d8a96;
+  --harm: #2f8aa6;
+  --div: #a43b8a;
+  --display: "Chakra Petch", "Bahnschrift", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141712; --surface: #1c2019; --fg: #e6e8df; --muted: #979d8e; --line: #2f342b;
+    --accent: #a9bb63; --accent-fg: #141712; --chip: #252a21;
+    --gold: #e0b443; --plat: #b4c0cb; --harm: #5cc4e0; --div: #e07ac6; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141712; --surface: #1c2019; --fg: #e6e8df; --muted: #979d8e; --line: #2f342b;
+  --accent: #a9bb63; --accent-fg: #141712; --chip: #252a21;
+  --gold: #e0b443; --plat: #b4c0cb; --harm: #5cc4e0; --div: #e07ac6; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { color-scheme: light; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 14px; line-height: 1.45; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 880px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+header .wrap { padding-block: 16px 0; display: grid; gap: 12px; }
+.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font-family: var(--display); font-weight: 700; font-size: 22px; letter-spacing: 0.04em; text-transform: uppercase; margin: 0; }
+.overall { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
+.overall b { color: var(--fg); font-weight: 600; }
+.bar { height: 4px; background: var(--chip); border-radius: 2px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .25s; }
+nav { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; margin-inline: -4px; padding-inline: 4px; }
+nav::-webkit-scrollbar { display: none; }
+nav button { font-family: var(--display); font-weight: 600; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; background: none; border: 0; color: var(--muted); padding: 10px 10px 11px; border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; display: flex; gap: 6px; align-items: baseline; }
+nav button small { font-family: var(--body); font-size: 11px; font-weight: 500; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+nav button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+nav button:focus-visible, .chip:focus-within, .tool:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+main .wrap { padding-block: 20px 48px; display: grid; gap: 14px; }
+.classhead { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+.classhead h2 { font-family: var(--display); font-size: 16px; text-transform: uppercase; letter-spacing: 0.06em; margin: 0; }
+.tiers { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tiers span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; background: var(--c); }
+.weapon { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px; display: grid; gap: 10px; }
+.wtop { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.wname { font-family: var(--display); font-weight: 600; font-size: 16px; letter-spacing: 0.02em; }
+.tag { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin-left: 6px; }
+.wcount { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; display: flex; gap: 10px; align-items: baseline; }
+.tool { background: none; border: 0; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 2px; }
+.group { display: grid; gap: 6px; }
+.glabel { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px 5px 8px; border-radius: 4px; background: var(--chip); border: 1px solid transparent; cursor: pointer; user-select: none; font-size: 13px; --c: var(--accent); }
+.chip input { position: absolute; opacity: 0; pointer-events: none; }
+.chip .box { width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid var(--muted); display: grid; place-items: center; flex: none; }
+.chip.on { background: color-mix(in srgb, var(--c) 16%, var(--surface)); border-color: color-mix(in srgb, var(--c) 45%, transparent); }
+.chip.on .box { background: var(--c); border-color: var(--c); }
+.chip.on .box::after { content: ""; width: 7px; height: 4px; border: solid var(--surface); border-width: 0 0 2px 2px; transform: translateY(-1px) rotate(-45deg); }
+.chip.gold { --c: var(--gold); } .chip.plat { --c: var(--plat); } .chip.harm { --c: var(--harm); } .chip.div { --c: var(--div); }
+.chip .lbl { display: grid; line-height: 1.3; }
+.chip .task { font-size: 11px; color: var(--muted); }
+.chip .task.unv { font-style: italic; }
+.chip .ml { display: block; }
+.chip .ml b { font-weight: 600; color: var(--fg); margin-right: 4px; font-size: 10px; letter-spacing: 0.06em; }
+.modebar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.modes { display: inline-flex; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+.modes button { font-family: var(--display); font-weight: 600; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; background: var(--surface); color: var(--muted); border: 0; border-left: 1px solid var(--line); padding: 6px 12px; cursor: pointer; }
+.modes button:first-child { border-left: 0; }
+.modes button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
+.modes button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.weapon.mastery { gap: 8px; }
+.tasks { display: grid; gap: 4px; font-size: 12px; color: var(--muted); margin: 0; padding: 0; list-style: none; }
+.tasks b { color: var(--fg); font-weight: 600; }
+.note { font-size: 12px; color: var(--muted); }
+.mastery .chip { width: 100%; padding: 10px 12px; }
+.update { position: fixed; right: 16px; bottom: 16px; z-index: 20; display: flex; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; box-shadow: 0 6px 20px rgb(0 0 0 / 0.18); font-size: 13px; }
+.update button { font: inherit; font-weight: 600; background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 4px; padding: 6px 12px; cursor: pointer; }
+.version { text-align: center; font-size: 11px; color: var(--muted); padding-block: 0 24px; }
+@media (max-width: 480px) { .wtop { flex-direction: column; gap: 2px; } }
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="top">
+      <h1>MW4 Camo Tracker</h1>
+      <div class="overall" id="overall"></div>
+    </div>
+    <div class="modebar"><span class="glabel">Requirements for</span><div class="modes" id="modes" role="group" aria-label="Game mode"></div></div>
+    <div class="bar"><i id="overallBar"></i></div>
+    <nav id="tabs" role="tablist" aria-label="Weapon classes"></nav>
+  </div>
+</header>
+<main><div class="wrap" id="panel"></div></main>
+<p class="version" id="version"></p>
+<div class="update" id="update" hidden><span id="updateText">Update ready</span><button type="button" id="restart">Restart to update</button></div>
+
+<script>
+const CLASSES = [
+  { id: "ar", name: "Assault Rifles", short: "AR",
+    weapons: ["Han 86","M4","Hyeon Burst","Patriot XMR","Kastov 762","Oden","Axion","Cronen Squall",["Cronen Osprey","S1"]] },
+  { id: "smg", name: "SMGs", short: "SMG", weapons: ["ISO Nightshade","PPSh-41","X-58 Nyx","Wz. 55 Striga","VEL 46",["CSG-35","S1"]] },
+  { id: "shotgun", name: "Shotguns", short: "Shotgun", weapons: ["Rezi 12","Warlord"] },
+  { id: "lmg", name: "LMGs", short: "LMG", weapons: ["FiNN LMG","Type 73","APOC-338"] },
+  { id: "marksman", name: "Marksman Rifles", short: "Marksman", weapons: ["MAR-9","Oris 8.6","Mosin-Nagant"] },
+  { id: "sniper", name: "Sniper Rifles", short: "Sniper", weapons: ["KG-7 Vulcan","Astaroth .57","Signal 50"] },
+  { id: "pistol", name: "Pistols", short: "Pistol", weapons: ["SANG 9mm","Krait P68",".50 GS","Mojave .357"] },
+  { id: "launcher", name: "Launchers", short: "Launcher", weapons: ["PILA","RPG-8","JOKR","PM-40 Anvil"] },
+  { id: "melee", name: "Melee", short: "Melee", weapons: [["FSS Carbon Edge 1095", null, "knife"]] },
+];
+
+// Per weapon: mil = weapon level for Military 1–8; sp = [name, Multiplayer, DMZ, Warzone] for each Special;
+// gold / plat / harm = [Multiplayer, DMZ, Warzone]. "" means that mode's count isn't listed.
+// Source: in-game challenge data collected by CODMunity (Nov 2026). MAR-9 is community-reported (mw4camotracker.com).
+const CAMO = {"50-gs":{"mil":[10,16,22,28,32,36,40,46],"sp":[["Frosted","20 headshot kills","75 headshot kills","10 headshot kills"],["Red Tiger","30 point-blank kills","75 point-blank kills","15 point-blank kills"],["Splatter Ops","7 double kills","20 double kills","2 kills within 10 seconds, 5 times"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["20 kills from behind","75 kills from behind","10 kills from behind"],"harm":["40 hipfire kills","100 hipfire kills","20 hipfire kills"]},"apoc-338":{"mil":[9,15,22,26,33,40,44,51],"sp":[["Mineral","20 longshot kills","75 longshot kills","10 longshot kills"],["Phantom Flux","20 hipfire kills","75 hipfire kills","10 hipfire kills"],["Tiger Swipe","100 kills while prone","250 kills while prone","45 kills while prone"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["3 kills without dying, 15 times","3 kills without taking damage, 50 times","3 kills without dying, 10 times"],"harm":["2 kills without releasing the trigger, 25 times","2 kills without releasing the trigger, 75 times","2 kills without releasing the trigger, 15 times"]},"astaroth-57":{"mil":[10,15,20,26,32,37,42,48],"sp":[["Backcountry","20 mounted kills","75 mounted kills","10 mounted kills"],["Dread Plague","2 kills within 5 seconds, 20 times","2 kills within 5 seconds, 50 times","2 kills within 5 seconds, 10 times"],["Dry Brush","3 kills without dying, 10 times","3 kills without taking damage, 25 times","3 kills without dying, 5 times"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["75 kills while prone","150 kills while prone","35 kills while prone"],"harm":["75 one-shot kills","150 one-shot kills","35 one-shot kills"]},"axion":{"mil":[10,19,26,34,41,48,55,62],"sp":[["Cyan","2 kills without reloading, 25 times","2 kills without reloading, 50 times","2 kills without reloading, 15 times"],["Splinter Rock","20 longshot kills","75 longshot kills","10 longshot kills"],["Sunset Tropic","25 kills with MIRI 40mm grenade launcher","75 kills with MIRI 40mm grenade launcher","10 kills with MIRI 40mm grenade launcher"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["50 headshots","100 headshots","25 headshots"],"harm":["25 double kills","50 double kills","2 kills within 10 seconds, 15 times"]},"cronen-osprey":{"mil":[9,13,16,20,23,26,29,33],"sp":[["Chained","2 kills without reloading, 25 times","","2 kills without reloading, 20 times"],["Dark Ichor","50 kills while aiming down sights","125 kills while aiming down sights","30 kills while aiming down sights"],["In the Weeds","20 hipfire kills","75 hipfire kills","10 hipfire kills"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["50 headshots","100 headshots","25 headshots"],"harm":["25 double kills","50 double kills","2 kills within 10 seconds, 15 times"]},"cronen-squall":{"mil":[10,17,24,31,39,45,54,60],"sp":[["Oni","20 point-blank kills","75 point-blank kills","10 point-blank kills"],["Optical Reverb","3 kills without dying, 15 times","3 kills without taking damage, 50 times","3 kills without dying, 10 times"],["Urban Smoke","20 mounted kills","75 mounted kills","10 mounted kills"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["50 headshots","100 headshots","25 headshots"],"harm":["25 double kills","50 double kills","2 kills within 10 seconds, 15 times"]},"csg-35":{"mil":[8,10,14,17,19,23,27,29],"sp":[["Black Grip","50 kills while moving","100 kills while moving","20 kills while moving"],["Polyhedron","3 kills without dying, 20 times","3 kills without taking damage, 30 times","3 kills without dying, 5 times"],["Rind","50 kills using a suppressor","125 kills using a suppressor","30 kills using a suppressor"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["25 kills from behind","75 kills from behind","15 kills from behind"],"harm":["50 hipfire kills","100 hipfire kills","25 hipfire kills"]},"finn-lmg":{"mil":[12,18,24,31,37,42,48,53],"sp":[["Desert Tactics","20 point-blank kills","75 point-blank kills","10 point-blank kills"],["Green Tiger","2 kills without reloading, 10 times","2 kills without reloading, 30 times","2 kills without reloading, 5 times"],["Thunderhead","30 longshot kills","100 longshot kills","15 longshot kills"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["3 kills without dying, 15 times","3 kills without taking damage, 50 times","3 kills without dying, 10 times"],"harm":["2 kills without releasing the trigger, 25 times","2 kills without releasing the trigger, 75 times","2 kills without releasing the trigger, 15 times"]},"knife":{"mil":[6,11,16,21,26,31,36,41],"sp":[["Deathbed","2 kills in 5 seconds, 25 times","2 kills in 5 seconds, 50 times","2 kills in 5 seconds, 15 times"],["Raster Lite","25 kills while jumping","100 kills while jumping","15 kills while jumping"],["Stockpile","25 kills using the heavy melee finisher","75 kills using the heavy melee finisher","15 kills using the heavy melee finisher"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["3 kills without dying, 15 times","3 kills without taking damage, 50 times","3 kills without dying, 10 times"],"harm":["25 kills from behind","75 kills from behind","15 kills from behind"]},"han-86":{"mil":[10,18,25,34,42,50,57,65],"sp":[["Smoke","20 kills while mounted","75 kills while mounted","10 kills while mounted"],["Stormwave","50 kills while using a suppressor","125 kills using a suppressor","25 kills while using a suppressor"],["Red","3 kills without dying, 15 times","3 kills without taking damage, 50 times","3 kills without dying, 8 times"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["50 headshots","100 headshots","25 headshots"],"harm":["25 double kills","50 double kills","2 kills within 10 seconds, 15 times"]},"hyeon-burst":{"mil":[10,17,26,32,40,49,55,62],"sp":[["Ponderosa","2 kills without reloading, 10 times","2 kills without reloading, 30 times","2 kills without reloading, 5 times"],["Red Rain","20 longshot kills","75 longshot kills","10 longshot kills"],["Kitty Kaos","100 kills while using a suppressor","250 kills while using a suppressor","45 kills while using a suppressor"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["50 headshots","100 headshots","25 headshots"],"harm":["25 double kills","50 double kills","2 kills within 10 seconds, 15 times"]},"iso-nightshade":{"mil":[12,19,25,31,38,44,50,57],"sp":[["Asphalt","50 kills while aiming down sights","125 kills while aiming down sights","25 kills while aiming down sights"],["Black Topo","10 double kills","30 double kills","2 kills within 10 seconds, 5 times"],["Brown","3 kills without dying, 15 times","3 kills without taking damage, 50 times","10 longshot kills"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["25 kills from behind","75 kills from behind","15 kills from behind"],"harm":["50 hipfire kills","100 hipfire kills","25 hipfire kills"]},"jokr":{"mil":[6,11,16,21,26,31,36,41],"sp":[["Blue Tiger","destroy 30 killstreaks or vehicles","destroy 50 killstreaks or vehicles","destroy 15 killstreaks or vehicles"],["Tectonic","10 longshot kills","25 longshot kills","5 longshot kills"],["Thicket","5 double kills","15 double kills","2 kills within 10 seconds, 3 times"]],"gold":["15 kills in a single match","50 kills in a single match","8 kills in a single match"],"plat":["2 kills without taking damage, 15 times","2 kills without taking damage, 50 times","2 kills without taking damage, 8 times"],"harm":["10 kills in a match, 7 times","10 kills in a match, 15 times","10 kills in a match, 5 times"]},"kastov-762":{"mil":[10,19,27,37,45,54,61,67],"sp":[["Raster Aux","20 longshot kills","75 longshot kills","10 longshot kills"],["Samnim","3 kills without dying, 10 times","5 kills without taking damage, 25 times","3 kills without dying, 5 times"],["Yellow","30 hipfire kills","100 hipfire kills","15 hipfire kills"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["50 headshots","100 headshots","25 headshots"],"harm":["25 double kills","50 double kills","2 kills within 10 seconds, 15 times"]},"kg-7-vulcan":{"mil":[13,22,31,38,47,54,61,69],"sp":[["Spidersilk","20 headshot kills","75 headshot kills","10 headshot kills"],["Tension","2 kills without taking damage, 20 times","2 kills without taking damage, 30 times","2 kills without taking damage, 10 times"],["Treeline","10 hipfire kills","25 hipfire kills","5 hipfire kills"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["75 kills while prone","150 kills while prone","35 kills while prone"],"harm":["75 one-shot kills","150 one-shot kills","35 one-shot kills"]},"krait-p68":{"mil":[10,14,18,22,25,28,32,35],"sp":[["Off Grid","15 kills while hanging from a ledge","50 kills while hanging from a ledge","10 sliding kills"],["Smokescreen","50 kills while using a suppressor","125 kills using a suppressor","25 kills while using a suppressor"],["Urban Flamingo","15 point-blank kills","50 point-blank kills","10 point-blank kills"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["20 kills from behind","75 kills from behind","10 kills from behind"],"harm":["40 hipfire kills","100 hipfire kills","20 hipfire kills"]},"m4":{"mil":[10,18,26,35,39,44,51,59],"sp":[["Myriad","20 point-blank kills","75 point-blank kills","10 point-blank kills"],["Night Ops","20 mounted kills","75 mounted kills","10 mounted kills"],["Green","25 kills from behind","100 kills from behind","15 kills from behind"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["50 headshots","100 headshots","25 headshots"],"harm":["25 double kills","50 double kills","2 kills within 10 seconds, 15 times"]},"mojave-357":{"mil":[9,13,18,22,26,30,35,40],"sp":[["Garland","30 point-blank kills","75 point-blank kills","15 point-blank kills"],["Miami","15 one-shot kills","50 one-shot kills","10 kills without taking damage from the target"],["Wallpaper","2 kills without reloading, 10 times","2 kills without reloading, 20 times","2 kills without reloading, 5 times"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["20 kills from behind","75 kills from behind","10 kills from behind"],"harm":["40 hipfire kills","100 hipfire kills","20 hipfire kills"]},"mosin-nagant":{"mil":[10,17,25,31,38,47,55,61],"sp":[["Fractal Snow","2 kills without reloading, 10 times","2 kills without dying, 30 times","2 kills without reloading, 5 times"],["Ice Sheer","25 headshots","75 headshots","15 headshots"],["Sticker Shock","100 kills while focused","250 kills while focused","45 kills while focused"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["75 kills while prone","150 kills while prone","35 kills while prone"],"harm":["75 one-shot kills","150 one-shot kills","45 kills without taking damage from the target"]},"oden":{"mil":[12,21,25,33,39,46,53,59],"sp":[["Dark Moss","25 kills with MIRI 40mm grenade launcher","75 kills with MIRI 40mm grenade launcher","15 kills with MIRI 40mm grenade launcher"],["Hot Rod","100 kills while aiming down sights","250 kills while aiming down sights","45 kills while aiming down sights"],["Shale","2 kills without reloading, 10 times","2 kills without reloading, 30 times","2 kills without reloading, 5 times"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["50 headshots","100 headshots","25 headshots"],"harm":["25 double kills","50 double kills","2 kills within 10 seconds, 15 times"]},"oris-8-6":{"mil":[11,18,27,33,42,49,55,61],"sp":[["Deep Space","3 kills without dying, 15 times","3 kills without taking damage, 50 times","3 kills without dying, 10 times"],["Fire Topo","20 double kills","50 double kills","2 kills within 10 seconds, 10 times"],["Hibiscus","10 quickscope kills","50 quickscope kills","5 quickscope kills"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["75 kills while prone","150 kills while prone","35 kills while prone"],"harm":["75 one-shot kills","150 one-shot kills","45 kills without taking damage from the target"]},"patriot-xmr":{"mil":[11,20,28,36,43,52,59,66],"sp":[["Disperse","30 longshot kills","100 longshot kills","15 longshot kills"],["Dune Sea","20 hipfire kills","75 hipfire kills","10 hipfire kills"],["Scorch","50 kills using a suppressor","125 kills using a suppressor","25 kills using a suppressor"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["50 headshots","100 headshots","25 headshots"],"harm":["25 double kills","50 double kills","2 kills within 10 seconds, 15 times"]},"pila":{"mil":[6,11,16,21,26,31,36,41],"sp":[["Digital Fall","destroy 30 killstreaks or vehicles","destroy 50 killstreaks or vehicles","destroy 15 killstreaks or vehicles"],["Frontier","10 direct shot kills","25 direct shot kills","5 direct shot kills"],["Sandwash","5 double kills","100 double kills","2 kills within 10 seconds, 3 times"]],"gold":["15 kills in a single match","50 kills in a single match","8 kills in a single match"],"plat":["2 kills without taking damage, 15 times","2 kills without taking damage, 50 times","2 kills without taking damage, 8 times"],"harm":["10 kills in a match, 7 times","10 kills in a match, 15 times","10 kills in a match, 5 times"]},"pm-40-anvil":{"mil":[6,11,16,21,26,31,36,41],"sp":[["Night Snow","25 direct shot kills","25 direct shot kills","10 direct shot kills"],["Recursive","2 kills without reloading, 5 times","2 kills without reloading, 20 times","2 kills without reloading, 3 times"],["Urban Standard","40 kills while moving","100 kills while moving","20 kills while moving"]],"gold":["15 kills in a single match","50 kills in a single match","8 kills in a single match"],"plat":["2 kills without taking damage, 15 times","2 kills without taking damage, 50 times","2 kills without taking damage, 8 times"],"harm":["10 kills in a match, 7 times","10 kills in a match, 15 times","10 kills in a match, 5 times"]},"ppsh-41":{"mil":[11,17,23,31,38,44,51,57],"sp":[["Blackwell","10 double kills","30 double kills","2 kills within 10 seconds, 5 times"],["Currents","100 kills while aiming down sights","250 kills while aiming down sights","45 kills while aiming down sights"],["Iron","20 longshot kills","75 longshot kills","10 longshot kills"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["25 kills from behind","75 kills from behind","15 kills from behind"],"harm":["50 hipfire kills","100 hipfire kills","25 hipfire kills"]},"rezi-12":{"mil":[11,18,26,30,38,42,47,54],"sp":[["Brushstroke","10 longshot kills","50 longshot kills","5 longshot kills"],["Struck Oil","20 point-blank kills","75 point-blank kills","10 point-blank kills"],["White Pine","40 kills while jumping","100 kills while jumping","20 kills while jumping"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["50 hipfire kills","125 hipfire kills","25 hipfire kills"],"harm":["2 kills without reloading, 25 times","2 kills without reloading, 50 times","2 kills without reloading, 15 times"]},"rpg-8":{"mil":[6,11,16,21,26,31,36,41],"sp":[["Bubblegum Ops","destroy 30 killstreaks or vehicles","destroy 50 killstreaks or vehicles","destroy 15 killstreaks or vehicles"],["Digi Bark","10 kills while prone","25 kills while prone","5 kills while prone"],["Stone Bits","10 longshot kills","25 longshot kills","5 longshot kills"]],"gold":["15 kills in a single match","50 kills in a single match","8 kills in a single match"],"plat":["2 kills without taking damage, 15 times","2 kills without taking damage, 50 times","2 kills without taking damage, 8 times"],"harm":["10 kills in a match, 7 times","10 kills in a match, 15 times","10 kills in a match, 5 times"]},"sang-9mm":{"mil":[9,13,17,21,25,28,31,35],"sp":[["Autumn","25 kills while aiming down sights","75 kills while aiming down sights","15 kills while aiming down sights"],["Snakeskin","3 kills without dying, 5 times","3 kills without taking damage, 15 times","3 kills without dying, 3 times"],["Space Time","50 kills while using akimbo","125 kills while using akimbo","25 kills while using akimbo"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["20 kills from behind","75 kills from behind","10 kills from behind"],"harm":["40 hipfire kills","100 hipfire kills","20 hipfire kills"]},"signal-50":{"mil":[10,18,28,35,43,52,57,67],"sp":[["Anaconda","2 kills within 5 seconds, 10 times","2 kills within 5 seconds, 25 times","2 kills within 5 seconds, 5 times"],["Ripplewave","20 quickscope kills","30 quickscope kills","10 quickscope kills"],["Sunburn","40 longshot kills","100 longshot kills","20 longshot kills"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["75 kills while prone","200 kills while prone","35 kills while prone"],"harm":["75 one-shot kills","200 one-shot kills","35 one-shot kills"]},"type-73":{"mil":[12,19,26,34,41,48,55,61],"sp":[["Ash Pine","20 mounted kills","75 mounted kills","10 mounted kills"],["Foxtrail","40 headshots","100 headshots","20 headshots"],["Outcrop","10 double kills","30 double kills","2 kills within 10 seconds, 5 times"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["3 kills without dying, 15 times","3 kills without taking damage, 50 times","3 kills without dying, 10 times"],"harm":["2 kills without releasing the trigger, 25 times","2 kills without releasing the trigger, 75 times","2 kills without releasing the trigger, 15 times"]},"vel-46":{"mil":[9,15,22,28,33,40,47,54],"sp":[["Ghast","20 kills while prone","100 kills while prone","10 kills while prone"],["Gunmetal","20 headshots","75 headshots","10 headshots"],["Jungle Shadow","50 kills while aiming down sights","125 kills while aiming down sights","25 kills while aiming down sights"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["25 kills from behind","75 kills from behind","15 kills from behind"],"harm":["50 hipfire kills","100 hipfire kills","25 hipfire kills"]},"warlord":{"mil":[13,19,25,30,37,43,49,55],"sp":[["Corrupted Clay","10 double kills","30 double kills","2 kills within 10 seconds, 5 times"],["Magma Ire","50 kills while prone","125 kills while prone","25 kills while prone"],["Redshift","20 kills while moving","75 kills while moving","10 kills while moving"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["50 hipfire kills","125 hipfire kills","25 hipfire kills"],"harm":["2 kills without reloading, 25 times","2 kills without reloading, 50 times","2 kills without reloading, 15 times"]},"wz-55-striga":{"mil":[12,18,23,29,36,41,47,54],"sp":[["Dark Tan","40 point-blank kills","100 point-blank kills","20 point-blank kills"],["Rattlesnake","20 kills while jumping","50 kills while jumping","10 kills while jumping"],["Stellation","50 kills using a suppressor","125 kills using a suppressor","25 kills using a suppressor"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["25 kills from behind","75 kills from behind","15 kills from behind"],"harm":["50 hipfire kills","100 hipfire kills","25 hipfire kills"]},"x-58-nyx":{"mil":[9,15,20,25,29,35,42,47],"sp":[["Carbonated","20 longshot kills","75 longshot kills","10 longshot kills"],["Lime","40 headshot kills","100 headshots","20 headshot kills"],["Sniper Veil","20 kills while moving","75 kills while moving","10 kills while moving"]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["25 kills from behind","75 kills from behind","15 kills from behind"],"harm":["50 hipfire kills","100 hipfire kills","25 hipfire kills"]},"mar-9":{"mil":[],"sp":[["Fungal Grid","20 kills while mounted","",""],["Mangrove","25 kills while crouched","",""],["White","30 longshot kills","",""]],"gold":["15 kills in a single match","100 kills in a single match","8 kills in a single match"],"plat":["75 kills while prone","150 kills while prone","35 kills while prone"],"harm":["75 one-shot kills","150 one-shot kills","45 kills without taking damage from the target"],"note":"MAR-9 challenges are community-reported and Multiplayer-only for Specials."}};
+
+const MODES = [
+  { id: "mp", label: "MP", name: "Multiplayer" },
+  { id: "dmz", label: "DMZ", name: "DMZ" },
+  { id: "wz", label: "Warzone", name: "Warzone" },
+  { id: "all", label: "All", name: "All modes" },
+];
+const SLOTS = [
+  ...[1, 2, 3, 4, 5, 6, 7, 8].map(i => ({ key: "m" + i, name: "Military " + i, group: "Military" })),
+  ...[1, 2, 3].map(i => ({ key: "s" + i, name: "Special " + i, group: "Special" })),
+  { key: "gold", name: "Gold", group: "Completionist", cls: "gold" },
+  { key: "plat", name: "Platinum", group: "Completionist", cls: "plat" },
+  { key: "harm", name: "Harmonic Break", group: "Completionist", cls: "harm" },
+  { key: "div", name: "Divergence", group: "Completionist", cls: "div" },
+];
+// Account-wide mastery camos. `mode` limits a group to one game mode; Weapon Prestige applies everywhere.
+const MASTERY_GROUPS = [
+  { title: "Multiplayer mastery", mode: "mp", items: [
+    { key: "mp1", name: "Mercurial Drift", task: "10 kills in a match, 250 times" },
+    { key: "mp2", name: "Polyatomic Reforged", task: "3 kills without taking damage, 300 times" },
+    { key: "mp3", name: "Orion Reforged", task: "5 kills without dying, 500 times" } ] },
+  { title: "DMZ mastery", mode: "dmz", items: [
+    { key: "dmz1", name: "Chiral", task: "2,500 Tier 3+ enemy kills" },
+    { key: "dmz2", name: "Ripple Tide", task: "Exfil with 2 LT dog tags in one deployment, 50 times" },
+    { key: "dmz3", name: "Helio", task: "25,000 kills with Legendary weapons on a max-level Operator" } ] },
+  { title: "Warzone mastery", mode: "wz", items: [], empty: "Warzone joins the camo grind in Season 1. Its mastery camos haven't been published yet." },
+  { title: "Weapon Prestige", items: [
+    { key: "p1", name: "Pyroclast", task: "Reach Weapon Prestige 1" },
+    { key: "p2", name: "Pyroclast Terminus", task: "Max level in Weapon Prestige 1" },
+    { key: "p3", name: "Pyroclast Scatter", task: "Prestige Master level 150" },
+    { key: "p4", name: "Pyroclast Cascade", task: "Prestige Master level 250" } ] },
+];
+const MASTERY = MASTERY_GROUPS.flatMap(g => g.items);
+
+const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+CLASSES.forEach(c => c.weapons = c.weapons.map(w => Array.isArray(w) ? { name: w[0], tag: w[1], id: w[2] || slug(w[0]) } : { name: w, id: slug(w) }));
+const ALL = CLASSES.flatMap(c => c.weapons);
+const TABS = [...CLASSES.map(c => ({ id: c.id, label: c.short })), { id: "mastery", label: "Mastery" }];
+
+// progress: { [docId]: { [slotKey]: true } }; docId is a weapon id, or "_mastery"
+let progress = {};
+const LS_KEY = "mw4-camo-progress";
+function lsLoad() { try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; } }
+function lsSave() { try { localStorage.setItem(LS_KEY, JSON.stringify(progress)); } catch {} }
+progress = lsLoad();
+
+const MODE_KEY = "mw4-camo-mode";
+let mode = "mp";
+try { const m = localStorage.getItem(MODE_KEY); if (MODES.some(x => x.id === m)) mode = m; } catch {}
+
+let current = TABS.some(t => t.id === location.hash.slice(1)) ? location.hash.slice(1) : "ar";
+const $ = id => document.getElementById(id);
+const isDone = (doc, key) => !!(progress[doc] && progress[doc][key]);
+const countW = w => SLOTS.filter(s => isDone(w.id, s.key)).length;
+const countClass = c => c.weapons.reduce((n, w) => n + countW(w), 0);
+const tierCount = (list, key) => list.filter(w => isDone(w.id, key)).length;
+
+function renderHeader() {
+  const total = ALL.length * SLOTS.length;
+  const done = ALL.reduce((n, w) => n + countW(w), 0);
+  $("overall").innerHTML = `<b>${done}</b> / ${total} camos · Gold <b>${tierCount(ALL, "gold")}</b>/${ALL.length} · Divergence <b>${tierCount(ALL, "div")}</b>/${ALL.length}`;
+  $("overallBar").style.width = (done / total * 100).toFixed(1) + "%";
+  $("modes").innerHTML = MODES.map(m => `<button type="button" data-mode="${m.id}" aria-pressed="${m.id === mode}" title="Show ${m.name} requirements">${m.label}</button>`).join("");
+  $("tabs").innerHTML = TABS.map(t => {
+    const c = CLASSES.find(c => c.id === t.id);
+    const n = c ? `${countClass(c)}/${c.weapons.length * SLOTS.length}` : `${MASTERY.filter(m => isDone("_mastery", m.key)).length}/${MASTERY.length}`;
+    return `<button role="tab" id="tab-${t.id}" aria-selected="${t.id === current}" data-tab="${t.id}">${t.label}<small>${n}</small></button>`;
+  }).join("");
+}
+
+function chip(doc, s, task, unv) {
+  const on = isDone(doc, s.key);
+  const id = `cb-${doc}-${s.key}`;
+  return `<label class="chip ${s.cls || ""} ${on ? "on" : ""}" for="${id}"><input type="checkbox" id="${id}" data-doc="${doc}" data-key="${s.key}" ${on ? "checked" : ""}><span class="box"></span><span class="lbl">${s.name}${task ? `<span class="task${unv ? " unv" : ""}">${task}</span>` : ""}</span></label>`;
+}
+
+// Text for one challenge in the chosen mode. `vals` is [Multiplayer, DMZ, Warzone].
+function modeText(vals, prefix) {
+  const pre = prefix ? prefix + ", then " : "";
+  if (mode === "all") {
+    const lines = ["MP", "DMZ", "WZ"].map((l, i) => `<span class="ml"><b>${l}</b> ${vals[i] || "not listed"}</span>`).join("");
+    return (prefix ? `<span class="ml">${prefix}, then:</span>` : "") + lines;
+  }
+  const v = vals[["mp", "dmz", "wz"].indexOf(mode)];
+  return pre + (v || "Not listed for " + MODES.find(m => m.id === mode).name);
+}
+
+function renderPanel() {
+  const p = $("panel");
+  if (current === "mastery") {
+    p.innerHTML = `<div class="classhead"><h2>Mastery Camos</h2></div>
+      <p class="note">Mode mastery challenges open after Divergence. They're tracked once for your account.</p>
+      ${MASTERY_GROUPS.filter(g => !g.mode || mode === "all" || g.mode === mode).map(g => `<div class="weapon mastery"><div class="glabel">${g.title}</div>
+        ${g.items.length ? `<div class="group">${g.items.map(m => chip("_mastery", m, m.task)).join("")}</div>` : `<p class="note">${g.empty}</p>`}</div>`).join("")}`;
+    return;
+  }
+  const c = CLASSES.find(c => c.id === current);
+  const group = g => SLOTS.filter(s => s.group === g);
+  const launch = c.weapons.filter(w => !w.tag).length;
+  const slotChip = (w, s) => {
+    const d = CAMO[w.id];
+    const unv = !!(d && d.note);
+    if (!d) return chip(w.id, s, "Not listed yet, check in game");
+    if (s.group === "Military") {
+      const lv = d.mil[+s.key.slice(1) - 1];
+      return chip(w.id, s, lv ? "Weapon level " + lv : "Level up the weapon", unv);
+    }
+    if (s.group === "Special") {
+      const sp = d.sp[+s.key.slice(1) - 1];
+      return sp ? chip(w.id, { ...s, name: sp[0] }, modeText(sp.slice(1)), unv) : chip(w.id, s, "Not listed yet, check in game");
+    }
+    if (s.key === "gold") return chip(w.id, s, modeText(d.gold, "All Military and Special camos"), unv);
+    if (s.key === "plat") return chip(w.id, s, modeText(d.plat, launch > 1 ? `Gold on all ${launch} launch ${c.short} weapons` : "Gold"), unv);
+    if (s.key === "harm") return chip(w.id, s, modeText(d.harm, "Platinum on all 33 launch weapons"), unv);
+    if (s.key === "div") return chip(w.id, s, "Unlocks after 33 Harmonic Breaks. No extra challenge.");
+    return chip(w.id, s);
+  };
+  p.innerHTML = `<div class="classhead"><h2>${c.name}</h2>
+      <div class="tiers">
+        <span style="--c:var(--gold)">Gold ${tierCount(c.weapons, "gold")}/${c.weapons.length}</span>
+        <span style="--c:var(--plat)">Platinum ${tierCount(c.weapons, "plat")}/${c.weapons.length}</span>
+        <span style="--c:var(--harm)">Harmonic ${tierCount(c.weapons, "harm")}/${c.weapons.length}</span>
+        <span style="--c:var(--div)">Divergence ${tierCount(c.weapons, "div")}/${c.weapons.length}</span>
+      </div></div>
+    <p class="note">Showing ${MODES.find(m => m.id === mode).name} requirements. A challenge done in any mode counts everywhere, so pick the mode you'd rather grind in. Military camos unlock as you level the weapon.</p>
+    ${c.weapons.map(w => {
+      const n = countW(w);
+      return `<section class="weapon" aria-label="${w.name}">
+        <div class="wtop"><div class="wname">${w.name}${w.tag ? `<span class="tag">${w.tag}</span>` : ""}</div>
+          <div class="wcount"><span>${n}/${SLOTS.length}</span>${n < SLOTS.length ? `<button class="tool" data-fill="${w.id}">Mark all</button>` : `<button class="tool" data-clear="${w.id}">Clear</button>`}</div></div>
+        ${CAMO[w.id] && CAMO[w.id].note ? `<p class="note"><i>${CAMO[w.id].note}</i></p>` : ""}
+        ${["Military", "Special", "Completionist"].map(g => `<div class="group"><div class="glabel">${g}</div><div class="chips">${group(g).map(s => slotChip(w, s)).join("")}</div></div>`).join("")}
+      </section>`;
+    }).join("")}
+    <p class="note">Requirements come from the game's challenge data as collected by CODMunity, and can change with patches. If a card here disagrees with the game, trust the game.</p>`;
+}
+
+function render() { renderHeader(); renderPanel(); }
+
+function setDoc(doc, done) {
+  progress[doc] = done;
+  lsSave();
+  render();
+}
+
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (!t.matches("input[data-doc]")) return;
+  const done = { ...(progress[t.dataset.doc] || {}) };
+  if (t.checked) done[t.dataset.key] = true; else delete done[t.dataset.key];
+  setDoc(t.dataset.doc, done);
+  const again = document.getElementById(t.id); if (again) again.focus();
+});
+document.addEventListener("click", e => {
+  const mb = e.target.closest("[data-mode]");
+  if (mb) { mode = mb.dataset.mode; try { localStorage.setItem(MODE_KEY, mode); } catch {} render(); return; }
+  const tab = e.target.closest("[data-tab]");
+  if (tab) { current = tab.dataset.tab; history.replaceState(null, "", "#" + current); render(); window.scrollTo({ top: 0 }); return; }
+  const f = e.target.closest("[data-fill]");
+  if (f) { setDoc(f.dataset.fill, Object.fromEntries(SLOTS.map(s => [s.key, true]))); return; }
+  const c = e.target.closest("[data-clear]");
+  if (c) setDoc(c.dataset.clear, {});
+});
+window.addEventListener("hashchange", () => {
+  const h = location.hash.slice(1);
+  if (TABS.some(t => t.id === h) && h !== current) { current = h; render(); }
+});
+
+render();
+
+
+// Desktop app only: show the version and offer a restart once an update has downloaded.
+if (window.desktop) {
+  window.desktop.version().then(v => { $("version").textContent = "MW4 Camo Tracker v" + v; });
+  window.desktop.onUpdateReady(v => {
+    $("updateText").textContent = "Version " + v + " is ready";
+    $("update").hidden = false;
+  });
+  $("restart").addEventListener("click", () => window.desktop.restartToUpdate());
+}
+</script>
+
+</body>
+</html>

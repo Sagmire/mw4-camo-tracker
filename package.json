@@ -1,0 +1,29 @@
+{
+  "name": "mw4-camo-tracker",
+  "productName": "MW4 Camo Tracker",
+  "version": "1.0.0",
+  "description": "Track every Modern Warfare 4 weapon camo, from Military to Divergence.",
+  "author": "Sagmire",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --publish never",
+    "release": "electron-builder --win --publish always"
+  },
+  "build": {
+    "appId": "com.sagmire.mw4camotracker",
+    "productName": "MW4 Camo Tracker",
+    "directories": { "output": "dist" },
+    "files": ["index.html", "main.js", "preload.js", "package.json"],
+    "win": { "target": "nsis" },
+    "nsis": { "oneClick": true, "perMachine": false, "artifactName": "MW4-Camo-Tracker-Setup-${version}.${ext}" },
+    "publish": [{ "provider": "github", "owner": "Sagmire", "repo": "mw4-camo-tracker", "releaseType": "release" }]
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "26.15.3"
+  },
+  "dependencies": {
+    "electron-updater": "6.8.9"
+  }
+}
